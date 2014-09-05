@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Foxboy Games &ndash; Fox, escape!</title>
+        <!-- Stylesheets -->
+        <link rel="stylesheet" href="reset.css">
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <div class="container">
+            <header>
+                <h1>Foxboy Games &ndash; Fox, escape!</h1>
+                <span class="tools">
+                    <label for="fps">
+                        fps: <span class="fps" id="fps">60.0</span>
+                    </label>
+                    <label for="debugMode">
+                        debug:
+                        <input type="checkbox" id="debugMode" onChange="javascript:game.toggleDebugMode();">
+                    </label>
+                </span>
+            </header>
+            <div class="canvasContainer">
+                <canvas id="webglcanvas" width="800" height="480">
+                    Your browser does not appear to support the
+                    HTML5 <code>&lt;canvas&gt;</code> element.
+                </canvas>
+            </div>
+            <div id="errors-container" class="errors" style="display:none;">
+                <h4>Errors: (<span id="errors-num">0</span>)</h4>
+                <ul id="errors"></ul>
+            </div>
+        </div>
+
+        <!-- Javascript: dependencies, libraries, game -->
+        <script src="glMatrix-0.9.5.min.js" type="text/javascript"></script>
+        <script src="webgl-utils.js" type="text/javascript"></script>
+        <script src="utilities.js" type="text/javascript"></script>
+        <script src="texture.js" type="text/javascript"></script>
+        <script src="objects.js" type="text/javascript"></script>
+        <script src="sprite.js" type="text/javascript"></script>
+        <script src="shader.js" type="text/javascript"></script>
+        <script src="game.js" type="text/javascript"></script>
+    </body>
+</html>
