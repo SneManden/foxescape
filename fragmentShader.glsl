@@ -12,16 +12,15 @@ void main(void) {
     vec4 textureColor = texture2D(uSampler, vTextureCoord);
     if (textureColor.a > 0.0) {
         vec4 baseColor = textureColor * uColor;
-        // Apply mushroom effect
-        float mushrooms = (1.0 - uMushroom*((1.0+5.0/vDist)));
-        // Fog
-        float fog = 1.0 / (vDist*1.0+2.0);
-        vec3 fogEffect = vec3(0.2, 0.2, 0.2) * (1.0 - fog);
+        // Mushroom and fog
+        float mushroom = (1.0 - uMushroom*((1.0+5.0/vDist)));
+        float fog = (1.0 / (vDist*vDist*0.1+5.0));
+        // Mushroom- and fog effects
+        vec3 fogEffect = vec3(0.01, 0.01, 0.01) * (1.0 - fog);
+        vec3 mushroomEffect = (vec3(0.15, 0.15, 0.15) - fogEffect)*uMushroom;
         // Apply fog and mushrooms
-        gl_FragColor = vec4( baseColor.xyz*fog*mushrooms + fogEffect, 1.0);
+        gl_FragColor = vec4( baseColor.xyz*fog*mushroom + fogEffect + mushroomEffect, 1.0);
     } else {
         discard; // makes it transparent?
     }
-
-    // gl_FragColor = texture2D(uSampler, vTextureCoord);
 }

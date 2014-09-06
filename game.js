@@ -13,7 +13,9 @@ var Game = function(debug) {
     this.obstacles = [];
     this.entities = [];
     this.textures = [];
-    this.remaining = 0;
+    this.samples = {};
+    this.texturesRemaining = 0;
+    this.samplesRemaining = 0;
     this.timeLast = 0;
     this.keys = {};
     this.camera = { pitch: 0.0, yaw: 0.0, x: 0.0, y: 0.0, z: 0.0 };
@@ -32,6 +34,12 @@ Game.prototype = {
         this.canvas = document.getElementById("webglcanvas");
         var error = this.initWebGL(this.canvas);
 
+        // Add samples here
+        this.samples.background = new Sample("background", "Abstraction-track04.wav", 0.4, -1);
+        this.samples.mushroom = new Sample("mushroom", "mushroom.wav", 0.8);
+        this.samples.berry = new Sample("berry", "berry.wav", 0.8);
+        this.samples.jump = new Sample("jump", "jump.wav", 0.5);
+        this.samples.fall = new Sample("fall", "fall.wav", 0.8);
         // Add textures here
         this.textures.push(
             (this.spriteSheet = new Texture({source:"spriteSheet.png"}))
@@ -49,6 +57,8 @@ Game.prototype = {
 
         // Is WebGl properly initialized and working?
         if (gl) {
+            gl.viewportWidth = this.canvas.width;
+            gl.viewportHeight = this.canvas.height;
             gl.clearColor(0.0, 0.0, 0.0, 1.0);  // rgba(0.0, 0.0, 0.0, 1.0)
             gl.clearDepth(1.0);                 // "clear everything"
             gl.enable(gl.DEPTH_TEST);           // Enable depth testing
@@ -58,7 +68,7 @@ Game.prototype = {
             document.onkeydown = partial(this.handleKeyDown, this);
             document.onkeyup = partial(this.handleKeyUp, this);
             this.initTextures();
-            this.start();
+            this.initSamples();
         } else {
             Util.displayError("WebGL initialization failed: " + error);
         }
@@ -67,13 +77,9 @@ Game.prototype = {
     initWebGL: function(canvas) {
         try { // Try real "webgl" context
             gl = canvas.getContext("webgl");
-            gl.viewportWidth = this.canvas.width;
-            gl.viewportHeight = this.canvas.height;
         } catch(e) {
             try { // Try experimental version
                 gl = canvas.getContext("experimental-webgl");
-                gl.viewportWidth = this.canvas.width;
-                gl.viewportHeight = this.canvas.height;
             } catch(e) {
                 return e;
             }
@@ -89,27 +95,37 @@ Game.prototype = {
 
     initBuffers: function() {
         Sprite4.initBuffers();
-        // for (var i in this.entities)
-        //     this.entities[i].initBuffers();
     },
 
     initTextures: function() {
         for (var i in this.textures) {
-            this.remaining++;
+            this.texturesRemaining++;
             this.textures[i].initTexture();
         }
     },
 
-    // assetLoaded: function() {
-    //     this.remaining--;
-    //     if (this.remaining == 0)
-    //         this.allAssetsLoaded();
-    // },
+    initSamples: function() {
+        if (!createjs.Sound.initializeDefaultPlugins()) return;
+        var manifest = [];
+        for (var i in this.samples) {
+            manifest.push( this.samples[i].getManifest() );
+            this.samplesRemaining++;
+        }
+        createjs.Sound.addEventListener("fileload", partial(this.sampleLoaded, this));
+        createjs.Sound.registerManifest(manifest, "snd/");
+    },
 
-    // allAssetsLoaded: function() {
-    //     Util.log("All assets loaded and initialized");
-    //     this.start();
-    // },
+    sampleLoaded: function(self, e) {
+        self.samples[e.id].hasLoaded();
+        self.samplesRemaining--;
+        if (self.samplesRemaining == 0)
+            self.allLoaded(self);
+    },
+
+    allLoaded: function(self) {
+        console.log("All assets has been loaded");
+        self.start();
+    },
 
     start: function() {
         if (this.shaderProgram == null) {
@@ -118,6 +134,9 @@ Game.prototype = {
         }
         Util.log("Game started");
         this.nextLevel();
+        // Play background music
+        this.samples.background.play();
+        // Start game loop
         gameLoop();
     },
 
@@ -129,19 +148,20 @@ Game.prototype = {
 
     drawScene: function() {
         gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-        gl.clearColor(0.25, 0.25, 0.25, 1.0);
+        // gl.clearColor(0.25, 0.25, 0.25, 1.0);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         // Initialize matrices for perspective and camera/view
         var pMatrix = mat4.create(),
             mvMatrix = mat4.create();
         mat4.perspective(35, gl.viewportWidth/gl.viewportHeight,
-            0.1, 75.0, pMatrix);
+            0.1, 100.0, pMatrix);
         mat4.identity(mvMatrix);
         // Set camera
         mat4.rotate(mvMatrix, Math.PI/20.0, [1, 0, 0]);
         mat4.translate(mvMatrix, [0.0, 0.0, -6.0]); // move a little back
-        mat4.translate(mvMatrix, [-this.player.position.x*0.5,
+        mat4.translate(mvMatrix, [-this.player.position.x*0.65,
                                   -0.25-this.player.position.y*0.25,
                                   -this.player.position.z] ); // follow player
 
@@ -165,14 +185,42 @@ Game.prototype = {
         Sprite4.renderSprite({w:128, h:128}, {x:0, y:0}, pMatrix, mvMatrix);
         mvMatrix = Util.popMatrix();
 
+        // Draw left side #1
         Util.pushMatrix(mvMatrix);
-        mat4.translate(mvMatrix, [-0.5, -0.5, 0.0]);
-        // mat4.translate(mvMatrix, [0.0, 0.0, -5.0]);
-        // mat4.translate(mvMatrix, [0.0, 0.0, -63.0-128.0+this.groundOffset]);
-        // mat4.rotate(mvMatrix, Math.PI/2.0, [0, 1, 0]);
-        // mat4.translate(mvMatrix, [0.0, -1.0, -15.0]);
-        // mat4.scale(mvMatrix, [128.0, 3.0, 0.0]);
-        // mat4.rotate(mvMatrix, Math.PI/2.0, [0, 1, 0]);
+        mat4.translate(mvMatrix, [-0.5-11.0, -0.5-7.75, 0.0+this.groundOffset]);
+        mat4.scale(mvMatrix, [10.0, 10.0, 128.0]);
+        mat4.rotate(mvMatrix, Math.PI/2.0, [0, 1, 0]);
+        Sprite4.setTexture(this.background);
+        Sprite4.renderSprite({w:128, h:128}, {x:0, y:0}, pMatrix, mvMatrix);
+        mvMatrix = Util.popMatrix();
+        // Draw left side #2
+        Util.pushMatrix(mvMatrix);
+        mat4.translate(mvMatrix, [-0.5-11.0, -0.5-7.75, -128.0+this.groundOffset]);
+        mat4.scale(mvMatrix, [10.0, 10.0, 128.0]);
+        mat4.rotate(mvMatrix, Math.PI/2.0, [0, 1, 0]);
+        Sprite4.setTexture(this.background);
+        Sprite4.renderSprite({w:128, h:128}, {x:0, y:0}, pMatrix, mvMatrix);
+        mvMatrix = Util.popMatrix();
+        // Draw right side #1
+        Util.pushMatrix(mvMatrix);
+        mat4.translate(mvMatrix, [-0.5+11.0, -0.5-7.75, 0.0+this.groundOffset]);
+        mat4.scale(mvMatrix, [10.0, 10.0, 128.0]);
+        mat4.rotate(mvMatrix, Math.PI/2.0, [0, 1, 0]);
+        Sprite4.setTexture(this.background);
+        Sprite4.renderSprite({w:128, h:128}, {x:0, y:0}, pMatrix, mvMatrix);
+        mvMatrix = Util.popMatrix();
+        // Draw right side #2
+        Util.pushMatrix(mvMatrix);
+        mat4.translate(mvMatrix, [-0.5+11.0, -0.5-7.75, -128.0+this.groundOffset]);
+        mat4.scale(mvMatrix, [10.0, 10.0, 128.0]);
+        mat4.rotate(mvMatrix, Math.PI/2.0, [0, 1, 0]);
+        Sprite4.setTexture(this.background);
+        Sprite4.renderSprite({w:128, h:128}, {x:0, y:0}, pMatrix, mvMatrix);
+        mvMatrix = Util.popMatrix();
+        // Draw background
+        Util.pushMatrix(mvMatrix);
+        mat4.translate(mvMatrix, [-0.5-11.0, -0.5-7.75, -75.0+this.player.position.z]);
+        mat4.scale(mvMatrix, [22.0, 10.0, 10.0]);
         Sprite4.setTexture(this.background);
         Sprite4.renderSprite({w:128, h:128}, {x:0, y:0}, pMatrix, mvMatrix);
         mvMatrix = Util.popMatrix();
@@ -233,16 +281,21 @@ Game.prototype = {
                 z: -(Math.random()*(zMax-zOffset) + zOffset)
             };
             sprite = Math.floor(Math.random() * (2 - 0)) + 0; // [0..1]
-            // Rock 20%, Tree 75%, Mushroom 5%
-            if (Math.random() < 0.20) 
+            // Rock 20%, Tree 70%, Mushroom 7%, Berry 3%
+            var probs = {tree:0.7, rock:0.2, mushroom:0.07, berry:0.03};
+            var rand = Math.random();
+            if (rand < probs.tree)
+               obstacle = new Tree(this, pos, this.spriteSheet,
+               {w:32.0, h:48.0}, {x:80.0, y:16.0} );
+            else if (rand < probs.tree+probs.rock) 
                 obstacle = new Rock(this, pos, this.spriteSheet,
                 {w:16.0, h:16.0}, {x:32.0+16.0*sprite, y:0.0} );
-            else if (Math.random() < 0.95)
-                obstacle = new Tree(this, pos, this.spriteSheet,
-                {w:32.0, h:48.0}, {x:80.0, y:16.0} );
+            else if (rand < probs.tree+probs.rock+probs.mushroom)
+               obstacle = new Mushroom(this, pos, this.spriteSheet,
+               {w:16.0, h:16.0}, {x:64.0, y:0.0}, i);
             else
-                obstacle = new Mushroom(this, pos, this.spriteSheet,
-                {w:16.0, h:16.0}, {x:64.0, y:0.0}, i);
+                obstacle = new Berry(this, pos, this.spriteSheet,
+                {w:16.0, h:16.0}, {x:32.0+16.0*sprite, y:16.0}, i);
             this.obstacles.push(obstacle);
         }
         Util.log("Created level from " + zOffset + " to " + zMax);

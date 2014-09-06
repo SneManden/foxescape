@@ -16,13 +16,15 @@ var Player = function(game, position, texture, size, offset, name) {
                     y:this.normalSpeed.y,
                     z:this.normalSpeed.z };
     this.acceleration = {x:0, y:0, z:0};
-    this.bounds = {top:1.0, right:4.0, bottom: -1.5, left: -4.0};
+    this.bounds = {top:1.0, right:6.0, bottom: -1.5, left: -6.0};
     this.running = true;
     this.tumble = false;
     this.jumpRun = true;
     this.animRate = 5.0;
     this.radius = 0.5;
     this.high = 0.0; // As in "mushroom high" (1.0 is high, 0.0 is normal)
+    this.stamina = 1.0;
+    this.jumpEnergy = 0.35;
 };
 Player.prototype = {
 
@@ -56,9 +58,11 @@ Player.prototype = {
 
         // Movement
         if (this.game.keys[38]) {  // JUMP
-            if (this.position.y < this.bounds.bottom+0.25) {
+            if (this.position.y < this.bounds.bottom+0.25 && this.stamina >= this.jumpEnergy) {
                 this.acceleration.y = this.speed.y;
                 this.frame = 1;
+                this.stamina -= this.jumpEnergy;
+                this.game.samples.jump.play();
             }
         }
         if (this.game.keys[37])     // LEFT
@@ -75,18 +79,30 @@ Player.prototype = {
             if (this.game.keys[83])
                 this.acceleration.z += this.speed.z;
         }
+        // DEBUG ONLY: mushrrom
+        if (true && this.game.debug) {
+            if (this.game.keys[77] && this.high == 0.0)
+                this.highMode();
+        }
+        // DEBUG ONLY: play sounds
+        if (true && this.game.debug) {
+            if (this.game.keys[32]) {
+                this.game.samples[0].play();
+            }
+        }
     },
 
     animate: function(elapsedTime) {
         this.ticks++;
-        return;
+
         if (this.running) {
             // Jump animation (small jumps)
             if (this.jumpRun && this.ticks % this.animRate == 0 && this.position.y == this.bounds.bottom) {
                 this.acceleration.y = this.speed.y/2.0;
                 this.frame++;
+                this.game.samples.jump.play();
             }
-            this.acceleration.z -= this.speed.z; // running
+            this.acceleration.z -= (this.speed.z)*(0.5+this.stamina*0.5); // running
         } else if (this.tumble) {
             this.acceleration.z -= 0.002;
         }
@@ -100,6 +116,9 @@ Player.prototype = {
         this.position.z += this.acceleration.z;
         // Eject other entities and world bounds
         this.eject();
+        // Stamina
+        this.stamina += 0.005;
+        if (this.stamina > 1.0) this.stamina = 1.0;
 
         if (this.high > 0.0 && this.ticks % 30.0 == 0) {
             this.high *= 0.95;
@@ -147,6 +166,8 @@ Player.prototype = {
         this.size = {w:32.0, h:16.0};
         this.offset = {x:32.0, y:80.0};
         this.frame = 0;
+        // Play fall sound
+        this.game.samples.fall.play();
         // Getup in a second (literaly)
         var self = this;
         setTimeout(function() { self.getUp(); }, 1000);
@@ -180,7 +201,10 @@ Player.prototype = {
     normalMode: function() {
         this.high = 0.0;
         this.applyMushroomEffect();
-        console.log(this.speed);
+    },
+
+    resetStamina: function() {
+        this.stamina = 1.0;
     }
 
 };
@@ -250,7 +274,7 @@ Rock.prototype.ejectOther = function(other, normal, distance) {
  * Mushroom: makes the player feel dizy and see weird colors
  */
 var Mushroom = function(game, position, texture, size, offset, index) {
-    Obstacle.call(this, game, position, texture, size, offset, index);
+    Obstacle.call(this, game, position, texture, size, offset);
     this.index = index;
     this.radius = 0.20;
 };
@@ -261,11 +285,55 @@ Mushroom.prototype.ejectOther = function(other, normal, distance) {
     if (other.position.y < other.bounds.bottom+2*this.radius) {
         other.highMode();
         this.destroy();
+        this.game.samples.mushroom.play();
     }
 };
 Mushroom.prototype.destroy = function() {
-    this.game.obstacles.splice(this.index, 1);
+    var index = this.game.obstacles.indexOf(this);
+    this.game.obstacles.splice(index, 1);
 }
+
+
+
+
+/**
+ * A berry: cures high-ness
+ */
+var Berry = function(game, position, texture, size, offset, index) {
+    Obstacle.call(this, game, position, texture, size, offset);
+    this.index = index;
+    this.radius = 0.20;
+    this.ticks = this.position.z % 128;
+};
+Berry.prototype = new Obstacle();
+Berry.prototype.constructor = Berry;
+Berry.prototype.draw = function(pMatrix, mvMatrix) {
+    this.ticks++;
+    // Pulse over ground
+    this.position.y = -1.5 + 0.3*(1.0+Math.sin(Math.PI*this.ticks/65.0));
+    // Draw self
+    Util.pushMatrix(mvMatrix);
+    Obstacle.prototype.draw.call(this, pMatrix, mvMatrix);
+    mvMatrix = Util.popMatrix();
+    // Render shadow
+    mat4.translate(mvMatrix,
+        [this.position.x-this.size.w/64.0, -2.0, this.position.z-0.01]);
+    var offset = {x:this.offset.x, y:this.offset.y+16.0};
+    Sprite4.renderSprite(this.size, offset, pMatrix, mvMatrix);
+};
+Berry.prototype.ejectOther = function(other, normal, distance) {
+    // Cure player
+    if (other.position.y < 3.0) {
+        other.resetStamina(); 
+        other.normalMode();
+        this.destroy();
+        this.game.samples.berry.play();
+    }
+};
+Berry.prototype.destroy = function() {
+    var index = this.game.obstacles.indexOf(this);
+    this.game.obstacles.splice(index, 1);
+};
 
 
 

@@ -4,10 +4,21 @@ Most important objectives
  ☐ Enemy / someone chasing fox?
  ☐ Fix running animation
  ☐ Add jumping animation
- ☐ Background (or does the fog elimate the need for this?)
- ☐ Slow down after jumping?
+ ✔ Background (or does the fog elimate the need for this?) @done (14-09-05 23:34)
+ ✔ Slow down after jumping? @done (14-09-05 23:35)
  ☐ Add other objects?
          ☐ Water (river) with small bridge (random position on x-axis)
-         ☐ Power ups (rønnebær): Super speed? Tree-breaker?
+         ✔ Power ups (rønnebær): Super speed? Tree-breaker? @done (14-09-05 23:35)
+ ☐ Add sound effects and background music!
+     ✔ Jump @done (14-09-06 02:41)
+     ✔ Fall @done (14-09-06 02:41)
+     ✔ Power up @done (14-09-06 02:41)
+     ✔ Mushroom @done (14-09-06 02:41)
+     ✔ Background @done (14-09-06 02:41)
+     ☐ Footsteps (enemy)
+     ☐ Title screen
+     ☐ Death
  ☐ Title screen, instructions
  ☐ Story?
+ ☐ Credits
+     ☐ Benjamin Burnes: Abstraction-track04.wav (https://soundcloud.com/abstraction)
