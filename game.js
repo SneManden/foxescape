@@ -26,6 +26,7 @@ var Game = function(debug) {
     this.level = -1;
     this.bounds = { top:1.0, right:8.0, bottom:-1.5, left:-8.0,
                     here:-64.0, there:-128.0 };
+    this.paused = false;
 };
 
 Game.prototype = {
@@ -35,7 +36,7 @@ Game.prototype = {
         var error = this.initWebGL(this.canvas);
 
         // Add samples here
-        this.samples.background = new Sample("background", "Abstraction-track04.wav", 0.4, -1);
+        this.samples.background = new Sample("background", "Abstraction-track04.wav", 0.6, -1);
         this.samples.mushroom = new Sample("mushroom", "mushroom.wav", 0.8);
         this.samples.berry = new Sample("berry", "berry.wav", 0.8);
         this.samples.jump = new Sample("jump", "jump.wav", 0.5);
@@ -123,7 +124,7 @@ Game.prototype = {
     },
 
     allLoaded: function(self) {
-        console.log("All assets has been loaded");
+        Util.log("All assets has been loaded");
         self.start();
     },
 
@@ -142,8 +143,10 @@ Game.prototype = {
 
     tick: function() {
         this.handleKeys();
-        this.drawScene();
-        this.animate();
+        if (!this.paused) {
+            this.drawScene();
+            this.animate();
+        }
     },
 
     drawScene: function() {
@@ -316,6 +319,20 @@ Game.prototype = {
     handleKeys: function() {
         if (this.frames % 3 == 0 && this.keys[68])
             this.toggleDebugMode();
+
+        if (true || this.debug) {
+            if (this.keys[79]) { // O
+                this.paused = true;
+                this.samples.background.pause();
+            }
+        }
+        if (true || this.debug) {
+            if (this.keys[80]) {
+                this.paused = false;
+                this.samples.background.play();
+            }
+        }
+
         this.entities[0].handleKeys();
     },
 

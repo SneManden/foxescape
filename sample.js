@@ -6,6 +6,7 @@
 var Sample = function(name, sample, volume, loop, interrupt) {
     this.name = (name === undefined ? "sample" + Math.random()*1000 : name);
     this.sample = sample;
+    this.sound = false;
     this.loaded = true;
     this.volume = (volume != undefined ? volume : 1.0);
     this.loop = (loop != undefined ? loop : 0);
@@ -15,24 +16,31 @@ Sample.prototype = {
 
     hasLoaded: function() {
         this.loaded = true;
-        console.log(" => " + this.name + " has loaded");
+        Util.log(" => " + this.name + " has loaded");
     },
 
     getManifest: function() {
         return {id: this.name, src: this.sample};
     },
 
-    play: function(attributes) {
+    play: function() {
         if (!this.loaded) return;
-        createjs.Sound.play(this.name, {
-            interrupt: this.interrupt,
-            volume: this.volume,
-            loop: this.loop,
-        });
+        if (!this.sound) 
+            this.sound = createjs.Sound.play(this.name, {
+                interrupt: this.interrupt,
+                volume: this.volume,
+                loop: this.loop,
+            });
+        else
+            this.sound.play({
+                interrupt: this.interrupt,
+                volume: this.volume,
+                loop: this.loop,
+            });
     },
 
-    loop: function() {
-        console.log("Not implemented");
+    pause: function() {
+        this.sound.pause();
     },
 
     setVolume: function(volume) {

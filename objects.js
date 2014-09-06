@@ -84,12 +84,7 @@ Player.prototype = {
             if (this.game.keys[77] && this.high == 0.0)
                 this.highMode();
         }
-        // DEBUG ONLY: play sounds
-        if (true && this.game.debug) {
-            if (this.game.keys[32]) {
-                this.game.samples[0].play();
-            }
-        }
+        
     },
 
     animate: function(elapsedTime) {
