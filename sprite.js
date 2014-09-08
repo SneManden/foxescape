@@ -133,19 +133,26 @@ var Sprite4 = {
         this.setTexture(texture);
         var size = {w:5, h:8},
             offset = {x:0, y:0},
-            letter;
+            xPos, yPos, letter;
         var totalOffset = 0;
         for (var i=0; i<message.length; i++) {
             symbolInFont = message.charCodeAt(i) - 32; // space=32
-            offset.x = 5 * (symbolInFont % 12);
-            offset.y = 8 * Math.floor(symbolInFont / 12);
+            xPos = (symbolInFont % 12);
+            yPos = Math.floor(symbolInFont / 12);
+            offset.x = 5 * xPos;
+            offset.y = 8 * yPos;
             // Draw the letter
             // console.log("Writing letter " + message[i] + " (code="+(symbolInFont+32)+")");
             // console.log(" => offset = {x:"+offset.x+", y:"+offset.y+"}");
             this.renderScreenSprite(size, offset, pMatrix, mvMatrix, color);
             // Move to the right for next letter
-            mat4.translate(mvMatrix, [0.9, 0.0, 0.0]);
-            totalOffset += 0.9;
+            if ( (yPos==2 && xPos>=8) || (yPos==3) || (yPos==4 && xPos<=9) ) {
+                mat4.translate(mvMatrix, [1.1, 0.0, 0.0]);
+                totalOffset += 1.1;
+            } else {
+                mat4.translate(mvMatrix, [0.99, 0.0, 0.0]);
+                totalOffset += 0.99;
+            }
         }
         mat4.translate(mvMatrix, [-totalOffset, -1.5, 0.0]);
     }
