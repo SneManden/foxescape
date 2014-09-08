@@ -58,6 +58,8 @@ Shader.prototype = {
             this.shaderProgram, "uColor");
         this.shaderProgram.mushroomUniform = gl.getUniformLocation(
             this.shaderProgram, "uMushroom");
+        this.shaderProgram.fadeUniform = gl.getUniformLocation(
+            this.shaderProgram, "uFade");
         Util.log("Shader: uniforms setup");
     },
 

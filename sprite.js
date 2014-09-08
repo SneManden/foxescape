@@ -95,6 +95,37 @@ var Sprite4 = {
         // Set camera and draw sprite
         this.setCamera(pMatrix, mvMatrix);
         gl.drawElements(gl.TRIANGLES, this.indexItemSize, gl.UNSIGNED_SHORT, 0);
+    },
+
+    renderSprite3: function(size, offset, pMatrix, mvMatrix, color) {
+        if (!this.texture.loaded) return;
+        color = (color === undefined ? [1.0, 1.0, 1.0, 1.0] : color);
+        // Setup texture matrix
+        var texMatrix = mat4.create();
+        mat4.identity(texMatrix);
+        mat4.scale(texMatrix,
+            [1.0/this.texture.width, /*(size.h/size.w)*/1.0/this.texture.height, 0.0]);
+        mat4.translate(texMatrix, [offset.x, 256-size.w-offset.y-16.0, 0.0]);
+        mat4.scale(texMatrix, [size.w, size.h, 0.0]);
+        gl.uniformMatrix4fv(this.shaderProgram.textureUniform, false, texMatrix);
+        gl.uniform4fv(this.shaderProgram.colorUniform, color);
+        this.setCamera(pMatrix, mvMatrix);
+        gl.drawElements(gl.TRIANGLES, this.indexItemSize, gl.UNSIGNED_SHORT, 0);
+    },
+
+    renderScreenSprite: function(size, offset, pMatrix, mvMatrix, color) {
+        if (!this.texture.loaded) return;
+        color = (color === undefined ? [1.0, 1.0, 1.0, 1.0] : color);
+        var texMatrix = mat4.create();
+        mat4.identity(texMatrix);
+        mat4.scale(texMatrix,
+            [1.0/this.texture.width, 1.0/this.texture.height, 0.0]);
+        mat4.translate(texMatrix, [offset.x+0.1, 256.0-size.h-offset.y+0.1, 0.0]);
+        mat4.scale(texMatrix, [size.w-0.2, size.h-0.2, 0.0]);
+        gl.uniformMatrix4fv(this.shaderProgram.textureUniform, false, texMatrix);
+        gl.uniform4fv(this.shaderProgram.colorUniform, [1.0, 1.0, 1.0, 1.0]);
+        this.setCamera(pMatrix, mvMatrix);
+        gl.drawElements(gl.TRIANGLES, this.indexItemSize, gl.UNSIGNED_SHORT, 0);
     }
 
 };

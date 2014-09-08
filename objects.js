@@ -3,11 +3,11 @@
  */
 var Player = function(game, position, texture, size, offset, name) {
     this.game = game;
-    this.texture = texture;
-    this.name = (name == undefined ? "Player "+Math.floor(Math.random()*100) : name);
     this.position = (position == undefined ? {x:0.0, y:0.0, z:0.0} : position);
+    this.texture = texture;
     this.size = (size == undefined ? {w:32, h:32} : size);
     this.offset = (offset == undefined ? {x:0, y:0} : offset);
+    this.name = (name == undefined ? "Player "+Math.floor(Math.random()*100) : name);
     this.ticks = 0;
     this.frame = 0;
     this.normalSpeed = {x:0.1, y:0.15, z:0.05};
@@ -368,4 +368,118 @@ Tree.prototype.draw = function(pMatrix, mvMatrix) {
     Sprite4.setTexture(this.texture);
 
     Sprite4.renderSprite2(this.size, this.offset, pMatrix, mvMatrix);
+};
+
+
+
+var Enemy = function(game, position, texture, size, offset, name) {
+    this.game = game;
+    this.position = (position == undefined ? {x:0.0, y:0.0, z:0.0} : position);
+    this.texture = texture;
+    this.size = (size == undefined ? {w:32, h:32} : size);
+    this.offset = (offset == undefined ? {x:0, y:0} : offset);
+    this.name = (name == undefined ? "Enemy "+Math.floor(Math.random()*100) : name);
+
+    this.normalSpeed = {x:0.1, y:0.15, z:0.049}; // Player: x:0.1, y:0.15, z:0.05
+    this.speed = {  x:this.normalSpeed.x,
+                    y:this.normalSpeed.y,
+                    z:this.normalSpeed.z };
+    this.acceleration = {x:0, y:0, z:0};
+    this.bounds = {top:1.0, right:6.0, bottom: -1.5, left: -6.0};
+    this.ticks = 0;
+    this.frame = 0;
+    this.rotation = {x:Math.PI/3.0, y:0.0, z:0.0};
+    this.playerOldPosition = 0;
+    this.lastTime = new Date().getTime();
+};
+Enemy.prototype = {
+
+    draw: function(pMatrix, mvMatrix) {
+        Util.pushMatrix(mvMatrix);
+
+        // Update position and rotation
+        mat4.translate(mvMatrix,
+            [this.position.x, this.position.y, this.position.z]);
+        mat4.translate(mvMatrix, [-0.5, -0.5, 0]); // adjust anchor
+        mat4.scale(mvMatrix, [1.5, 3.0, 0.0]);
+        mat4.rotate(mvMatrix, this.rotation.x, [1, 0, 0]);
+        // Set texture and draw sprite
+        Sprite4.setTexture(this.texture);
+        var offset = {x:this.offset.x+this.frame*this.size.w, y:this.offset.y};
+        Sprite4.renderSprite3(this.size, offset, pMatrix, mvMatrix);
+        mvMatrix = Util.popMatrix();
+
+        // Render shadow
+        // mat4.translate(mvMatrix,
+        //     [this.position.x-0.5, this.bounds.bottom-0.5, this.position.z-0.01]);
+        // mat4.scale(mvMatrix, [1.5, 0.8, 0.0]);
+        // Sprite4.renderSprite({w:32.0,h:16.0}, {x:32.0, y:96.0}, pMatrix, mvMatrix,
+        //     [0.0, 0.0, 0.0, 1.0]);
+    },
+
+    animate: function(elapsedTime) {
+        this.ticks++;
+        if (Math.floor(this.ticks/5.0) % 2 != this.frame) {
+            this.frame = (this.frame+1) % 2;
+            if (this.frame == 1)
+                this.game.samples.grab.play();
+        }
+        // this.frame = Math.floor(this.ticks/5.0) % 2;
+
+        // Follow player along x-axis
+        var direction = -(this.position.x-this.game.player.position.x);
+        this.acceleration.x += direction*this.speed.x;
+        // Enemy's speed approaches player speed as Enemy comes closer
+        // (with a maximum speed of normalSpeed (which is slower than player))
+        var distToPlayer = (this.position.z - this.game.player.position.z);
+        var playerPosDiff = this.playerOldPosition - this.game.player.position.z;
+        var now = new Date().getTime();
+        var playerSpeed = playerPosDiff / (now - this.lastTime);
+        var zSpeed = this.speed.z+(playerSpeed-this.speed.z+0.005)/(1+distToPlayer/10.0);
+        this.acceleration.z -= zSpeed;
+        this.game.samples.grab.setVolume( 1.0/(1+distToPlayer) );
+
+        // Update acceleration
+        this.acceleration.x *= 0.7; // friction
+        this.acceleration.y -= 0.00982; // gravity
+        this.acceleration.z *= 0.92; // friction
+        // Update position
+        this.position.x += this.acceleration.x;
+        this.position.y += this.acceleration.y;
+        this.position.z += this.acceleration.z;
+        // Eject other entities and world bounds
+        this.eject();
+
+        this.playerOldPosition = this.game.player.position.z;
+        this.lastTime = new Date().getTime();
+    },
+
+    eject: function() { // use better name?
+        // Vertical position bound
+        if (this.position.y < this.bounds.bottom)
+            this.position.y = this.bounds.bottom;
+        if (this.position.y > this.bounds.top)
+            this.position.y = this.bounds.top;
+        // Horizontal position bound
+        if (this.position.x < this.bounds.left)
+            this.position.x = this.bounds.left;
+        if (this.position.x > this.bounds.right)
+            this.position.x = this.bounds.right;
+
+        // Collide with obstacles
+        // for (var i in this.game.obstacles) {
+        //     var obstacle = this.game.obstacles[i],
+        //         zdiff = (obstacle.position.z - this.position.z),
+        //         combinedRadius = this.radius + obstacle.radius;
+        //     // Length is distance to obstacle
+        //     var xdiff = (obstacle.position.x - this.position.x),
+        //         length = Math.sqrt(xdiff*xdiff + zdiff*zdiff);
+        //     // Collision
+        //     if (length < combinedRadius) {// Eject player in direction of normal
+        //         var normal = {x:xdiff/length, z:zdiff/length};
+        //         obstacle.ejectOther(this, normal, combinedRadius - length);
+        //     }
+        // }
+    }
+
 };

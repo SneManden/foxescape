@@ -26,7 +26,17 @@ var Game = function(debug) {
     this.level = -1;
     this.bounds = { top:1.0, right:8.0, bottom:-1.5, left:-8.0,
                     here:-64.0, there:-128.0 };
+    this.keysLocked = false;
     this.paused = false;
+    this.playerGoalPosition = -1024.0;
+    this.STATES = {
+        LOADING: 0,
+        PLAY: 1,
+        PAUSED: 2,
+        WIN: 3,
+        LOSE: 4,
+    }
+    this.state = this.STATES.LOADING;
 };
 
 Game.prototype = {
@@ -37,10 +47,14 @@ Game.prototype = {
 
         // Add samples here
         this.samples.background = new Sample("background", "Abstraction-track04.wav", 0.6, -1);
+        this.samples.defeat = new Sample("defeat", "SuddenDefeat.mp3", 0.6, -1);
+        this.samples.cruelLaugh = new Sample("cruelLaugh", "cruelLaugh.mp3", 1.0, -1);
+        this.samples.evilLaugh = new Sample("evilLaugh", "evilLaughHitman.wav", 1.0, -1);
         this.samples.mushroom = new Sample("mushroom", "mushroom.wav", 0.8);
         this.samples.berry = new Sample("berry", "berry.wav", 0.8);
         this.samples.jump = new Sample("jump", "jump.wav", 0.5);
         this.samples.fall = new Sample("fall", "fall.wav", 0.8);
+        this.samples.grab = new Sample("grab", "grab.wav", 0.5);
         // Add textures here
         this.textures.push(
             (this.spriteSheet = new Texture({source:"spriteSheet.png"}))
@@ -54,6 +68,10 @@ Game.prototype = {
         // Add entities here
         this.entities.push(
             (this.player = new Player(this, undefined, this.spriteSheet))
+        );
+        this.entities.push(
+            (this.enemy = new Enemy(this, {x:0,y:0,z:10.0}, this.spriteSheet,
+                                    {w:16.0, h:32.0}, {x:64, y:96}))
         );
 
         // Is WebGl properly initialized and working?
@@ -133,6 +151,7 @@ Game.prototype = {
             Util.displayError("Shaderprogram not properly initialized");
             return;
         }
+        this.state = this.STATES.PLAY;
         Util.log("Game started");
         this.nextLevel();
         // Play background music
@@ -143,10 +162,14 @@ Game.prototype = {
 
     tick: function() {
         this.handleKeys();
-        if (!this.paused) {
+        if (this.state == this.STATES.PLAY) {
             this.drawScene();
             this.animate();
+        } else if (this.state == this.STATES.WIN || this.state == this.STATES.LOSE) {
+            this.drawWinLose();
+            this.animateWinLose();
         }
+        if (new Date().getTime() - this.keysLocked > 50) this.keysLocked = false;
     },
 
     drawScene: function() {
@@ -242,6 +265,107 @@ Game.prototype = {
             this.obstacles[i].draw(pMatrix, mvMatrix);
             mvMatrix = Util.popMatrix();
         }
+
+        // Draw (enemy vs player)-bar
+        gl.disable(gl.DEPTH_TEST);
+        var width = gl.viewportWidth,   height = gl.viewportHeight;
+        var oMatrix = mat4.create(),    vMatrix = mat4.create();
+        mat4.identity(oMatrix);         mat4.identity(vMatrix);
+
+
+        // Render bar
+        Util.pushMatrix(vMatrix);
+        mat4.translate(vMatrix, [-1.0, -0.75, -1.0]);
+        mat4.scale(vMatrix, [0.25, 1.0, 0.0]);
+        Sprite4.setTexture(this.spriteSheet);
+        Sprite4.renderScreenSprite({w:16,h:32}, {x:112,y:96}, oMatrix, vMatrix);
+        vMatrix = Util.popMatrix();
+        
+        // Render fox
+        var playerPos = (this.player.position.z / this.playerGoalPosition);
+        Util.pushMatrix(vMatrix);
+        mat4.translate(vMatrix, [-1.0+0.0625, -0.8 + 0.9*playerPos, -1.0]);
+        mat4.scale(vMatrix, [0.15, 0.15, 0.0]);
+        Sprite4.renderScreenSprite({w:16,h:16}, {x:96,y:112}, oMatrix, vMatrix);
+        vMatrix = Util.popMatrix();
+
+        // Render enemy
+        var enemyPos = (this.enemy.position.z / this.playerGoalPosition);
+        Util.pushMatrix(vMatrix);
+        mat4.translate(vMatrix, [-1.0+0.0625, -0.8 + 0.9*enemyPos, -1.0]);
+        mat4.scale(vMatrix, [0.15, 0.15, 0.0]);
+        Sprite4.renderScreenSprite({w:16,h:16}, {x:96,y:96}, oMatrix, vMatrix);
+        vMatrix = Util.popMatrix();
+
+        gl.enable(gl.DEPTH_TEST);
+    },
+
+    fadeToBlack: function(draw, callback) {
+        draw.call(this);
+        if (!this.fade) this.fade = [0.0, 0.0, 0.0];
+        if (vec3.nearlyEquals(this.fade, [0.35, 0.35, 0.35]))
+            callback.call(this);
+        else
+            vec3.add(this.fade, [0.001, 0.001, 0.001], this.fade);
+        gl.uniform3fv(this.shaderProgram.fadeUniform, this.fade);
+    },
+
+    fadeFromBlack: function(draw, callback) {
+        // draw.call(this);
+        if (!this.fade) this.fade = [0.35, 0.35, 0.35];
+        if (vec3.nearlyEquals(this.fade, [0.0, 0.0, 0.0]))
+            callback.call(this);
+        else
+            vec3.subtract(this.fade, [0.001, 0.001, 0.001], this.fade);
+        gl.uniform3fv(this.shaderProgram.fadeUniform, this.fade);
+    },
+
+    drawWinLose: function() {
+        // console.log("Fading");
+        
+        // console.log("drawWinLose()");
+
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        // Initialize matrices for perspective and camera/view
+        var pMatrix = mat4.create(),
+            mvMatrix = mat4.create();
+        mat4.perspective(35, gl.viewportWidth/gl.viewportHeight,
+            0.1, 100.0, pMatrix);
+        mat4.identity(mvMatrix);
+        // Set camera
+        mat4.rotate(mvMatrix, Math.PI/20.0, [1, 0, 0]);
+        mat4.translate(mvMatrix, [0.0, 1.0, -6.0]); // move a little back
+
+        Util.pushMatrix(mvMatrix);
+        mat4.translate(mvMatrix, [0.0, -2.0, -32.0]);
+        mat4.rotate(mvMatrix, Math.PI/2.0, [1, 0, 0]);
+        mat4.scale(mvMatrix, [48.0, 128.0, 1.0]);
+        mat4.translate(mvMatrix, [-0.5, -0.5, 0.0]); // adjust anchor
+        Sprite4.setTexture(this.groundTexture);
+        Sprite4.renderSprite({w:128, h:128}, {x:0, y:0}, pMatrix, mvMatrix);
+        mvMatrix = Util.popMatrix();
+
+        Util.pushMatrix(mvMatrix);
+        mat4.translate(mvMatrix, [-0.5, -0.5-1.5, 3.5]); // adjust anchor
+        // mat4.scale(mvMatrix, [1.5, 1.5, 0.0]);
+        // Set texture and draw sprite
+        Sprite4.setTexture(this.spriteSheet);
+        Sprite4.renderSprite3({w: 48, h: 48}, {x: 32, y: 32}, pMatrix, mvMatrix);
+        mvMatrix = Util.popMatrix();
+
+        // gl.disable(gl.DEPTH_TEST);
+        // var width = gl.viewportWidth,   height = gl.viewportHeight;
+        // var oMatrix = mat4.create(),    vMatrix = mat4.create();
+        // mat4.identity(oMatrix);         mat4.identity(vMatrix);
+        // // Draw Evil Mr. Grabberson with fox
+        // Util.pushMatrix(vMatrix);
+        // mat4.translate(vMatrix, [0.0, 0.0, -1.0]);
+        // mat4.scale(vMatrix, [1.0, 1.0, 0.0]);
+        // Sprite4.renderScreenSprite({w:48,h:48}, {x:64,y:48}, oMatrix, vMatrix);
+        // vMatrix = Util.popMatrix();
     },
 
     animate: function() {
@@ -260,6 +384,53 @@ Game.prototype = {
         if (this.level-1 < -Math.ceil(this.player.position.z/128.0)) {
             this.nextLevel();
         }
+
+        // Winning condition
+        if (this.player.position.z <= this.playerGoalPosition)
+            this.playerWins();
+        // Lose condition
+        if (this.player.position.z >= this.enemy.position.z-2.0)
+            this.playerLoses();
+
+        this.playerLoses();
+    },
+
+    animateWinLose: function() {
+        return;
+        if (this.doFade === undefined) this.doFade = true;
+        if (this.hasFaded === undefined) this.hasFaded = false;
+        if (this.doFade) {
+            if (!this.hasFaded) {
+                var self = this;
+                this.fadeToBlack(this.drawScene, function() {
+                    self.hasFaded = true;
+                    console.log("hasFaded from black");
+                });
+                return;
+            } else {
+                var self = this;
+                this.fadeFromBlack(undefined, function() {
+                    self.doFade = false;
+                    console.log("Done fading");
+                });
+            }
+        }
+    },
+
+    playerWins: function() {
+        this.state = this.STATES.WIN;
+        // this.pause();
+        console.log("Player wins!");
+    },
+
+    playerLoses: function() {
+        this.state = this.STATES.LOSE;
+        // this.pause();
+        createjs.Sound.stop();
+        createjs.Sound.setMute(false);
+        this.samples.defeat.play();
+        // this.samples.evilLaugh.play();
+        console.log("Player loses!");
     },
 
     nextLevel: function() {
@@ -317,23 +488,33 @@ Game.prototype = {
     },
 
     handleKeys: function() {
-        if (this.frames % 3 == 0 && this.keys[68])
+        if (!this.keysLocked && this.keys[68]) {
             this.toggleDebugMode();
-
-        if (true || this.debug) {
-            if (this.keys[79]) { // O
-                this.paused = true;
-                this.samples.background.pause();
-            }
+            this.keysLocked = new Date().getTime();
         }
-        if (true || this.debug) {
-            if (this.keys[80]) {
-                this.paused = false;
-                this.samples.background.play();
-            }
+
+        // Pause game
+        if (!this.keysLocked && this.keys[80]) {
+            if (this.paused)    this.unPause();
+            else                this.pause();
+            this.keysLocked = new Date().getTime();
         }
 
         this.entities[0].handleKeys();
+    },
+
+    pause: function() {
+        this.state = this.STATES.PAUSED;
+        this.paused = true;
+        // this.samples.background.pause();
+        createjs.Sound.setMute(true);
+    },
+
+    unPause: function() {
+        this.state = this.STATES.PLAY;
+        this.paused = false;
+        createjs.Sound.setMute(false);
+        // this.samples.background.play();
     },
 
     handleKeyDown: function(self, e) {

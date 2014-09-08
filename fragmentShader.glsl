@@ -6,6 +6,7 @@ varying float vDist;
 uniform sampler2D uSampler;
 uniform float uMushroom;
 uniform vec4 uColor;
+uniform vec3 uFade;
 
 void main(void) {
     // Texture
@@ -19,7 +20,7 @@ void main(void) {
         vec3 fogEffect = vec3(0.01, 0.01, 0.01) * (1.0 - fog);
         vec3 mushroomEffect = (vec3(0.15, 0.15, 0.15) - fogEffect)*uMushroom;
         // Apply fog and mushrooms
-        gl_FragColor = vec4( baseColor.xyz*fog*mushroom + fogEffect + mushroomEffect, 1.0);
+        gl_FragColor = vec4( baseColor.xyz*fog*mushroom + fogEffect + mushroomEffect - uFade, 1.0);
     } else {
         discard; // makes it transparent?
     }
