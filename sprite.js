@@ -126,6 +126,28 @@ var Sprite4 = {
         gl.uniform4fv(this.shaderProgram.colorUniform, [1.0, 1.0, 1.0, 1.0]);
         this.setCamera(pMatrix, mvMatrix);
         gl.drawElements(gl.TRIANGLES, this.indexItemSize, gl.UNSIGNED_SHORT, 0);
+    },
+
+    drawText: function(message, texture, pMatrix, mvMatrix, color) {
+        color = (color === undefined ? [1.0, 1.0, 1.0, 1.0] : color);
+        this.setTexture(texture);
+        var size = {w:5, h:8},
+            offset = {x:0, y:0},
+            letter;
+        var totalOffset = 0;
+        for (var i=0; i<message.length; i++) {
+            symbolInFont = message.charCodeAt(i) - 32; // space=32
+            offset.x = 5 * (symbolInFont % 12);
+            offset.y = 8 * Math.floor(symbolInFont / 12);
+            // Draw the letter
+            // console.log("Writing letter " + message[i] + " (code="+(symbolInFont+32)+")");
+            // console.log(" => offset = {x:"+offset.x+", y:"+offset.y+"}");
+            this.renderScreenSprite(size, offset, pMatrix, mvMatrix, color);
+            // Move to the right for next letter
+            mat4.translate(mvMatrix, [0.9, 0.0, 0.0]);
+            totalOffset += 0.9;
+        }
+        mat4.translate(mvMatrix, [-totalOffset, -1.5, 0.0]);
     }
 
 };

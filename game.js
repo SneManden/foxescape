@@ -65,6 +65,9 @@ Game.prototype = {
         this.textures.push(
             (this.background = new Texture({source:"backgroundTrees.png"}))
         );
+        this.textures.push(
+            (this.font = new Texture({source:"font.png"}))
+        );
         // Add entities here
         this.entities.push(
             (this.player = new Player(this, undefined, this.spriteSheet))
@@ -321,10 +324,6 @@ Game.prototype = {
     },
 
     drawWinLose: function() {
-        // console.log("Fading");
-        
-        // console.log("drawWinLose()");
-
         gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -339,6 +338,7 @@ Game.prototype = {
         mat4.rotate(mvMatrix, Math.PI/20.0, [1, 0, 0]);
         mat4.translate(mvMatrix, [0.0, 1.0, -6.0]); // move a little back
 
+        // Draw ground
         Util.pushMatrix(mvMatrix);
         mat4.translate(mvMatrix, [0.0, -2.0, -32.0]);
         mat4.rotate(mvMatrix, Math.PI/2.0, [1, 0, 0]);
@@ -348,24 +348,27 @@ Game.prototype = {
         Sprite4.renderSprite({w:128, h:128}, {x:0, y:0}, pMatrix, mvMatrix);
         mvMatrix = Util.popMatrix();
 
+        // Draw Evil Mr. Grabberson with fox
         Util.pushMatrix(mvMatrix);
         mat4.translate(mvMatrix, [-0.5, -0.5-1.5, 3.5]); // adjust anchor
-        // mat4.scale(mvMatrix, [1.5, 1.5, 0.0]);
-        // Set texture and draw sprite
         Sprite4.setTexture(this.spriteSheet);
         Sprite4.renderSprite3({w: 48, h: 48}, {x: 32, y: 32}, pMatrix, mvMatrix);
         mvMatrix = Util.popMatrix();
 
-        // gl.disable(gl.DEPTH_TEST);
-        // var width = gl.viewportWidth,   height = gl.viewportHeight;
-        // var oMatrix = mat4.create(),    vMatrix = mat4.create();
-        // mat4.identity(oMatrix);         mat4.identity(vMatrix);
-        // // Draw Evil Mr. Grabberson with fox
-        // Util.pushMatrix(vMatrix);
-        // mat4.translate(vMatrix, [0.0, 0.0, -1.0]);
-        // mat4.scale(vMatrix, [1.0, 1.0, 0.0]);
-        // Sprite4.renderScreenSprite({w:48,h:48}, {x:64,y:48}, oMatrix, vMatrix);
-        // vMatrix = Util.popMatrix();
+        // Draw text
+        gl.disable(gl.DEPTH_TEST);
+        var width = gl.viewportWidth,   height = gl.viewportHeight;
+        var oMatrix = mat4.create(),    vMatrix = mat4.create();
+        mat4.identity(oMatrix);         mat4.identity(vMatrix);
+        // Draw lose text
+        mat4.translate(vMatrix, [-0.9, 0.75, 1.0]);
+        mat4.scale(vMatrix, [0.1, 0.2, 1.0]);
+        mat4.scale(vMatrix, [0.5, 0.5, 0.5]);
+        Util.pushMatrix(vMatrix);
+        Sprite4.drawText("Evil Mr. Grabberson: ", this.font, oMatrix, vMatrix);
+        Sprite4.drawText(" Muahaha! You lose, Foxboy! Fox is mine!", this.font, oMatrix, vMatrix);
+        vMatrix = Util.popMatrix();
+        gl.enable(gl.DEPTH_TEST);
     },
 
     animate: function() {
@@ -392,11 +395,11 @@ Game.prototype = {
         if (this.player.position.z >= this.enemy.position.z-2.0)
             this.playerLoses();
 
-        this.playerLoses();
+        // this.playerLoses();
     },
 
     animateWinLose: function() {
-        return;
+        // return;
         if (this.doFade === undefined) this.doFade = true;
         if (this.hasFaded === undefined) this.hasFaded = false;
         if (this.doFade) {
@@ -404,14 +407,14 @@ Game.prototype = {
                 var self = this;
                 this.fadeToBlack(this.drawScene, function() {
                     self.hasFaded = true;
-                    console.log("hasFaded from black");
+                    // console.log("hasFaded from black");
                 });
                 return;
             } else {
                 var self = this;
                 this.fadeFromBlack(undefined, function() {
                     self.doFade = false;
-                    console.log("Done fading");
+                    // console.log("Done fading");
                 });
             }
         }
@@ -419,18 +422,16 @@ Game.prototype = {
 
     playerWins: function() {
         this.state = this.STATES.WIN;
-        // this.pause();
-        console.log("Player wins!");
+        Util.log("Player wins!");
     },
 
     playerLoses: function() {
         this.state = this.STATES.LOSE;
-        // this.pause();
         createjs.Sound.stop();
         createjs.Sound.setMute(false);
         this.samples.defeat.play();
         // this.samples.evilLaugh.play();
-        console.log("Player loses!");
+        Util.log("Player loses!");
     },
 
     nextLevel: function() {
