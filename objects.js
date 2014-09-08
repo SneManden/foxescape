@@ -3,7 +3,7 @@
  */
 var Player = function(game, position, texture, size, offset, name) {
     this.game = game;
-    this.position = (position == undefined ? {x:0.0, y:0.0, z:0.0} : position);
+    this.position = (position == undefined ? {x:0.0, y:-1.5, z:0.0} : position);
     this.texture = texture;
     this.size = (size == undefined ? {w:32, h:32} : size);
     this.offset = (offset == undefined ? {x:0, y:0} : offset);
@@ -73,16 +73,11 @@ Player.prototype = {
                 this.speed.x : this.speed.x*0.5);
 
         // DEBUG ONLY: Forward
-        if (true && this.game.debug) {
+        if (false && this.game.debug) {
             if (this.game.keys[87])
                 this.acceleration.z -= this.speed.z;
             if (this.game.keys[83])
                 this.acceleration.z += this.speed.z;
-        }
-        // DEBUG ONLY: mushrrom
-        if (true && this.game.debug) {
-            if (this.game.keys[77] && this.high == 0.0)
-                this.highMode();
         }
         
     },
@@ -136,7 +131,7 @@ Player.prototype = {
         if (this.position.x > this.bounds.right)
             this.position.x = this.bounds.right;
 
-        // Collide with rock
+        // Collide with obstacles
         for (var i in this.game.obstacles) {
             var obstacle = this.game.obstacles[i],
                 zdiff = (obstacle.position.z - this.position.z),
@@ -347,7 +342,7 @@ Tree.prototype.constructor = Tree;
 Tree.prototype.ejectOther = function(other, normal, distance) {
     other.slowDown( Math.cos(normal.z)-0.25 );
     Obstacle.prototype.ejectOther(other, normal, distance);
-}
+};
 Tree.prototype.draw = function(pMatrix, mvMatrix) {
     this.ticks++;
 
@@ -372,6 +367,10 @@ Tree.prototype.draw = function(pMatrix, mvMatrix) {
 
 
 
+
+/**
+ * Enemy (Evil Mr. Grabberson): chases player
+ */
 var Enemy = function(game, position, texture, size, offset, name) {
     this.game = game;
     this.position = (position == undefined ? {x:0.0, y:0.0, z:0.0} : position);
@@ -482,4 +481,32 @@ Enemy.prototype = {
         // }
     }
 
+};
+
+
+
+var FoxHole = function(game, position, texture, size, offset) {
+    Obstacle.call(this, game, position, texture, size, offset);
+    this.isFoxhole = true;
+    this.radius = 1.5;
+};
+FoxHole.prototype = new Obstacle();
+FoxHole.prototype.constructor = FoxHole;
+FoxHole.prototype.draw = function(pMatrix, mvMatrix) {
+    mat4.translate(mvMatrix, [-0.5, -0.5, 0.0]);
+    mat4.translate(mvMatrix, [this.position.x,this.position.y,this.position.z]);
+    mat4.scale(mvMatrix, [2.0, 1.0, 1.0]);
+    Sprite4.setTexture(this.texture);
+    Sprite4.renderSprite(this.size, this.offset, pMatrix, mvMatrix);
+};
+FoxHole.prototype.ejectOther = function(other, normal, distance) {
+    // Obstacle.prototype.ejectOther(other, normal, distance);
+
+    other.normalMode();
+    // this.game.samples.foxhole.play();
+    this.game.playerWins();
+};
+FoxHole.prototype.destroy = function() {
+    var index = this.game.obstacles.indexOf(this);
+    this.game.obstacles.splice(index, 1);
 };

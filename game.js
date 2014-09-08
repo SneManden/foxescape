@@ -28,7 +28,7 @@ var Game = function(debug) {
                     here:-64.0, there:-128.0 };
     this.keysLocked = false;
     this.paused = false;
-    this.playerGoalPosition = -1024.0;
+    this.playerGoalPosition = -1024.0-64.0; // Better not on boundary (x*128)
     this.STATES = {
         LOADING: 0,
         PLAY: 1,
@@ -48,8 +48,6 @@ Game.prototype = {
         // Add samples here
         this.samples.background = new Sample("background", "Abstraction-track04.wav", 0.6, -1);
         this.samples.defeat = new Sample("defeat", "SuddenDefeat.mp3", 0.6, -1);
-        this.samples.cruelLaugh = new Sample("cruelLaugh", "cruelLaugh.mp3", 1.0, -1);
-        this.samples.evilLaugh = new Sample("evilLaugh", "evilLaughHitman.wav", 1.0, -1);
         this.samples.mushroom = new Sample("mushroom", "mushroom.wav", 0.8);
         this.samples.berry = new Sample("berry", "berry.wav", 0.8);
         this.samples.jump = new Sample("jump", "jump.wav", 0.5);
@@ -177,7 +175,6 @@ Game.prototype = {
 
     drawScene: function() {
         gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-        // gl.clearColor(0.25, 0.25, 0.25, 1.0);
         gl.clearColor(0.0, 0.0, 0.0, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -292,13 +289,15 @@ Game.prototype = {
         Sprite4.renderScreenSprite({w:16,h:16}, {x:96,y:112}, oMatrix, vMatrix);
         vMatrix = Util.popMatrix();
 
-        // Render enemy
-        var enemyPos = (this.enemy.position.z / this.playerGoalPosition);
-        Util.pushMatrix(vMatrix);
-        mat4.translate(vMatrix, [-1.0+0.0625, -0.8 + 0.9*enemyPos, -1.0]);
-        mat4.scale(vMatrix, [0.15, 0.15, 0.0]);
-        Sprite4.renderScreenSprite({w:16,h:16}, {x:96,y:96}, oMatrix, vMatrix);
-        vMatrix = Util.popMatrix();
+        if (this.enemy) {
+            // Render enemy
+            var enemyPos = (this.enemy.position.z / this.playerGoalPosition);
+            Util.pushMatrix(vMatrix);
+            mat4.translate(vMatrix, [-1.0+0.0625, -0.8 + 0.9*enemyPos, -1.0]);
+            mat4.scale(vMatrix, [0.15, 0.15, 0.0]);
+            Sprite4.renderScreenSprite({w:16,h:16}, {x:96,y:96}, oMatrix, vMatrix);
+            vMatrix = Util.popMatrix();
+        }
 
         gl.enable(gl.DEPTH_TEST);
     },
@@ -348,11 +347,27 @@ Game.prototype = {
         Sprite4.renderSprite({w:128, h:128}, {x:0, y:0}, pMatrix, mvMatrix);
         mvMatrix = Util.popMatrix();
 
-        // Draw Evil Mr. Grabberson with fox
+        // Draw Win or Lose 
+        if (this.state == this.STATES.WIN)
+            this.drawWin(pMatrix, mvMatrix);
+        if (this.state == this.STATES.LOSE)
+            this.drawLose(pMatrix, mvMatrix);
+    },
+
+    drawWin: function(pMatrix, mvMatrix) {
+        // Draw exhausted Evil Mr. Grabberson
         Util.pushMatrix(mvMatrix);
-        mat4.translate(mvMatrix, [-0.5, -0.5-1.5, 3.5]); // adjust anchor
+        mat4.translate(mvMatrix, [-1.0, -2.0, 3.5]); // adjust anchor
         Sprite4.setTexture(this.spriteSheet);
-        Sprite4.renderSprite3({w: 48, h: 48}, {x: 32, y: 32}, pMatrix, mvMatrix);
+        Sprite4.renderSprite3({w:32, h:48}, {x:80, y:48}, pMatrix, mvMatrix);
+        mvMatrix = Util.popMatrix();
+
+        // Draw Fox in Foxhole
+        Util.pushMatrix(mvMatrix);
+        mat4.translate(mvMatrix, [0.5, -2.0, 1.5]); // adjust anchor
+        mat4.scale(mvMatrix, [1.0, 0.5, 1.0]);
+        Sprite4.setTexture(this.spriteSheet);
+        Sprite4.renderSprite({w:32, h:16}, {x:64, y:16-16}, pMatrix, mvMatrix);
         mvMatrix = Util.popMatrix();
 
         // Draw text
@@ -361,12 +376,38 @@ Game.prototype = {
         var oMatrix = mat4.create(),    vMatrix = mat4.create();
         mat4.identity(oMatrix);         mat4.identity(vMatrix);
         // Draw lose text
-        mat4.translate(vMatrix, [-0.9, 0.75, 1.0]);
+        mat4.translate(vMatrix, [-0.95, 0.8, 1.0]);
         mat4.scale(vMatrix, [0.1, 0.2, 1.0]);
         mat4.scale(vMatrix, [0.5, 0.5, 0.5]);
         Util.pushMatrix(vMatrix);
         Sprite4.drawText("Evil Mr. Grabberson: ", this.font, oMatrix, vMatrix);
-        Sprite4.drawText(" Muahaha! You lose, Foxboy! Fox is mine!", this.font, oMatrix, vMatrix);
+        Sprite4.drawText(" \"Aaah! Damn you, Fox! You win this time!\"",
+            this.font, oMatrix, vMatrix);
+        vMatrix = Util.popMatrix();
+        gl.enable(gl.DEPTH_TEST);
+    },
+
+    drawLose: function(pMatrix, mvMatrix) {
+        // Draw Evil Mr. Grabberson with fox
+        Util.pushMatrix(mvMatrix);
+        mat4.translate(mvMatrix, [-0.5, -0.5-1.5, 3.5]); // adjust anchor
+        Sprite4.setTexture(this.spriteSheet);
+        Sprite4.renderSprite3({w:48, h:48}, {x:32, y:32}, pMatrix, mvMatrix);
+        mvMatrix = Util.popMatrix();
+
+        // Draw text
+        gl.disable(gl.DEPTH_TEST);
+        var width = gl.viewportWidth,   height = gl.viewportHeight;
+        var oMatrix = mat4.create(),    vMatrix = mat4.create();
+        mat4.identity(oMatrix);         mat4.identity(vMatrix);
+        // Draw lose text
+        mat4.translate(vMatrix, [-0.95, 0.8, 1.0]);
+        mat4.scale(vMatrix, [0.1, 0.2, 1.0]);
+        mat4.scale(vMatrix, [0.5, 0.5, 0.5]);
+        Util.pushMatrix(vMatrix);
+        Sprite4.drawText("Evil Mr. Grabberson: ", this.font, oMatrix, vMatrix);
+        Sprite4.drawText(" \"Muahaha! You lose, Foxboy! Fox is mine!\"",
+            this.font, oMatrix, vMatrix);
         vMatrix = Util.popMatrix();
         gl.enable(gl.DEPTH_TEST);
     },
@@ -388,18 +429,17 @@ Game.prototype = {
             this.nextLevel();
         }
 
-        // Winning condition
-        if (this.player.position.z <= this.playerGoalPosition)
-            this.playerWins();
-        // Lose condition
-        if (this.player.position.z >= this.enemy.position.z-2.0)
+        // Lose condition(s)
+        if (this.enemy && this.player.position.z >= this.enemy.position.z-2.0)
+            this.playerLoses();
+        if (this.enemy && this.player.position.z < this.foxhole.position.z-5.0)
             this.playerLoses();
 
+        // this.playerWins();
         // this.playerLoses();
     },
 
     animateWinLose: function() {
-        // return;
         if (this.doFade === undefined) this.doFade = true;
         if (this.hasFaded === undefined) this.hasFaded = false;
         if (this.doFade) {
@@ -407,29 +447,50 @@ Game.prototype = {
                 var self = this;
                 this.fadeToBlack(this.drawScene, function() {
                     self.hasFaded = true;
-                    // console.log("hasFaded from black");
+                    // Stop all sounds and start playing defeat/victory
+                    createjs.Sound.stop();
+                    // if (this.state == this.STATES.WIN) {
+                    //     this.samples.victory.play();
+                    //     this.samples.victory.setVolume(0);
+                    // }
+                    if (this.state == this.STATES.LOSE) {
+                        this.samples.defeat.play();
+                        this.samples.defeat.setVolume(0);
+                    }
                 });
+                this.samples.background.decreaseVolume(0.01);
                 return;
             } else {
                 var self = this;
                 this.fadeFromBlack(undefined, function() {
                     self.doFade = false;
-                    // console.log("Done fading");
+
+                    // if (this.state == this.STATES.WIN)
+                    //     this.samples.victory.setVolume(0.6);
+                    if (this.state == this.STATES.LOSE)
+                        this.samples.defeat.setVolume(0.6);
                 });
+                // if (this.state == this.STATES.WIN && this.samples.victory.volume<0.6)
+                //     this.samples.victory.increaseVolume(0.01);
+                if (this.state == this.STATES.LOSE && this.samples.defeat.volume<0.6)
+                    this.samples.defeat.increaseVolume(0.001);
             }
         }
     },
 
     playerWins: function() {
         this.state = this.STATES.WIN;
+        // createjs.Sound.stop();
+        // createjs.Sound.setMute(false);
+        // this.samples.victory.play();
         Util.log("Player wins!");
     },
 
     playerLoses: function() {
         this.state = this.STATES.LOSE;
-        createjs.Sound.stop();
-        createjs.Sound.setMute(false);
-        this.samples.defeat.play();
+        // createjs.Sound.stop();
+        // createjs.Sound.setMute(false);
+        // this.samples.defeat.play();
         // this.samples.evilLaugh.play();
         Util.log("Player loses!");
     },
@@ -437,8 +498,15 @@ Game.prototype = {
     nextLevel: function() {
         Util.log("Level " + this.level);
         this.level++;
-        if (this.level == 0)
+        if (this.level == 0) {
+            // Create foxhole
+            var pos = {x:Math.random()*4-2, y:-1.5, z:this.playerGoalPosition};
+            this.obstacles.push(
+                ( this.foxhole = new FoxHole(this, pos, this.spriteSheet,
+                    {w:32,h:16}, {x:64,y:16}) )
+            );
             this.createNextLevel( (this.level)*128.0, (this.level+1)*128.0);
+        }
         this.createNextLevel( (this.level+1)*128.0, (this.level+2)*128.0);
         this.clearOldLevel();
     },
@@ -455,13 +523,18 @@ Game.prototype = {
                 y: -1.5,
                 z: -(Math.random()*(zMax-zOffset) + zOffset)
             };
+
+            // Don't place objects near foxhole
+            if (this.foxhole && Math.abs(pos.z - this.foxhole.position.z) < 8.0)
+                continue;
+
             sprite = Math.floor(Math.random() * (2 - 0)) + 0; // [0..1]
             // Rock 20%, Tree 70%, Mushroom 7%, Berry 3%
             var probs = {tree:0.7, rock:0.2, mushroom:0.07, berry:0.03};
             var rand = Math.random();
             if (rand < probs.tree)
                obstacle = new Tree(this, pos, this.spriteSheet,
-               {w:32.0, h:48.0}, {x:80.0, y:16.0} );
+               {w:32.0, h:48.0}, {x:96.0, y:16.0} );
             else if (rand < probs.tree+probs.rock) 
                 obstacle = new Rock(this, pos, this.spriteSheet,
                 {w:16.0, h:16.0}, {x:32.0+16.0*sprite, y:0.0} );
@@ -489,13 +562,16 @@ Game.prototype = {
     },
 
     handleKeys: function() {
-        if (!this.keysLocked && this.keys[68]) {
+        // Debug mode
+        if (!this.keysLocked && this.keys[68]) { // D
             this.toggleDebugMode();
             this.keysLocked = new Date().getTime();
         }
-
+        // Mute
+        if (!this.keysLocked && this.keys[77]) // M
+            createjs.Sound.setMute(!createjs.Sound.getMute());
         // Pause game
-        if (!this.keysLocked && this.keys[80]) {
+        if (!this.keysLocked && this.keys[80]) { // P
             if (this.paused)    this.unPause();
             else                this.pause();
             this.keysLocked = new Date().getTime();
@@ -507,7 +583,6 @@ Game.prototype = {
     pause: function() {
         this.state = this.STATES.PAUSED;
         this.paused = true;
-        // this.samples.background.pause();
         createjs.Sound.setMute(true);
     },
 
@@ -515,7 +590,6 @@ Game.prototype = {
         this.state = this.STATES.PLAY;
         this.paused = false;
         createjs.Sound.setMute(false);
-        // this.samples.background.play();
     },
 
     handleKeyDown: function(self, e) {

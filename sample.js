@@ -44,7 +44,19 @@ Sample.prototype = {
     },
 
     setVolume: function(volume) {
-        this.volume = volume;
+        if (!this.sound) return;
+        this.volume = Math.min(1.0, Math.max(volume, 0.0));
+        this.sound.setVolume(this.volume);
+    },
+
+    increaseVolume: function(amount) {
+        if (this.volume <= 1.0-amount)
+            this.setVolume(this.volume + amount);
+    },
+
+    decreaseVolume: function(amount) {
+        if (this.volume >= 0.0+amount)
+            this.setVolume(this.volume - amount);
     },
 
     setLoop: function(loop) {
