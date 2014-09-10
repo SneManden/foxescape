@@ -2,6 +2,7 @@ html {}
 body {
     color: #000;
     background: #ddd;
+    font-family: 'Ubuntu Mono', monospace;
 }
 
 .container {

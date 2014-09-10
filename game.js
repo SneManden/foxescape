@@ -9,7 +9,7 @@ var Game = function(debug) {
     this.pMatrix = mat4.create();
     this.mvMatrix = mat4.create();
     this.shaderProgram = null;
-    this.treePositions = [];
+    // this.treePositions = [];
     this.obstacles = [];
     this.entities = [];
     this.textures = [];
@@ -28,7 +28,7 @@ var Game = function(debug) {
                     here:-64.0, there:-128.0 };
     this.keysLocked = false;
     this.paused = false;
-    this.playerGoalPosition = -1024.0-64.0; // Better not on boundary (x*128)
+    this.playerGoalPosition = -2048.0-64.0; // Better not on boundary (x*128)
     this.STATES = {
         LOADING: 0,
         TITLE: 1,
@@ -38,6 +38,15 @@ var Game = function(debug) {
         LOSE: 5,
     }
     this.state = this.STATES.LOADING;
+    this.SCREENS = {
+        WELCOME: 0,
+        STORY: 1,
+        CONTROLS: 2,
+        CREDITS: 3
+    };
+    this.screen = this.SCREENS.WELCOME;
+    this.doFade = true;
+    this.hasFaded = false;
 };
 
 Game.prototype = {
@@ -70,6 +79,9 @@ Game.prototype = {
         this.textures.push(
             (this.font = new Texture({source:"font.png"}))
         );
+        this.textures.push(
+            (this.titleTexture = new Texture({source:"title.png"}))
+        );
         // Add entities here
         this.entities.push(
             (this.player = new Player(this, undefined, this.spriteSheet))
@@ -91,6 +103,7 @@ Game.prototype = {
             this.initBuffers();
             document.onkeydown = partial(this.handleKeyDown, this);
             document.onkeyup = partial(this.handleKeyUp, this);
+            document.onkeypress = partial(this.handleKeyPressed, this);
             this.initTextures();
             this.initSamples();
         } else {
@@ -168,12 +181,30 @@ Game.prototype = {
             Util.displayError("Shaderprogram not properly initialized");
             return;
         }
+        // Reset
+        this.obstacles = [];
+        this.player.position = {x:0, y:-1.5, z:0};
+        this.enemy.position = {x:0, y:-1.5, z:32.0};
+        this.level = -1;
+        this.doFade = true;
+        this.hasFaded = false;
+        this.foxhole = null;
+        // Stop previous playing sounds/music
         createjs.Sound.stop();
-        this.state = this.STATES.PLAY;
-        Util.log("Game started");
-        this.nextLevel();
         // Play background music
+        this.samples.background.setVolume(0.6);
         this.samples.background.play();
+        // Set state and begin next level
+        this.state = this.STATES.PLAY;
+        this.nextLevel();
+        Util.log("Game started");
+    },
+
+    backToTitle: function() {
+        createjs.Sound.stop();
+        // Back to menu
+        this.state = this.STATES.TITLE;
+        this.samples.title.play();
     },
 
     tick: function() {
@@ -188,7 +219,8 @@ Game.prototype = {
             this.drawTitle();
             this.animateTitle();
         }
-        if (new Date().getTime() - this.keysLocked > 50) this.keysLocked = false;
+        if (new Date().getTime() - this.keysLocked > 500)
+            this.keysLocked = false;
     },
 
     drawTitle: function() {
@@ -216,54 +248,119 @@ Game.prototype = {
         Sprite4.renderSprite({w:128, h:128}, {x:0, y:0}, pMatrix, mvMatrix);
         mvMatrix = Util.popMatrix();
 
+        if (this.screen == this.SCREENS.WELCOME) {
+            // Draw Evil Mr. Grabberson, chasing fox
+            Util.pushMatrix(mvMatrix);
+            mat4.translate(mvMatrix, [-1.5, -2.05, 2.9]); // adjust anchor
+            mat4.scale(mvMatrix, [1.5, 1.0, 1.0]);
+            Sprite4.setTexture(this.titleTexture);
+            Sprite4.renderSprite({w:48, h:32}, {x:0, y:16}, pMatrix, mvMatrix);
+            mvMatrix = Util.popMatrix();
+            // Draw escaping fox
+            Util.pushMatrix(mvMatrix);
+            mat4.translate(mvMatrix, [0.2, -2.05, 2.9]); // adjust anchor
+            mat4.scale(mvMatrix, [1.5, 1.0, 1.0]);
+            Sprite4.setTexture(this.titleTexture);
+            Sprite4.renderSprite({w:48, h:32}, {x:0, y:-16}, pMatrix, mvMatrix);
+            mvMatrix = Util.popMatrix();
+        }
+
         // Prepare to draw text
         gl.disable(gl.DEPTH_TEST);
         var width = gl.viewportWidth,   height = gl.viewportHeight;
         var oMatrix = mat4.create(),    vMatrix = mat4.create();
         mat4.identity(oMatrix);         mat4.identity(vMatrix);
-        // Draw title text
+
+        // Set proper size and position at top-left corner
         mat4.translate(vMatrix, [-0.95, 0.8, 1.0]);
         mat4.scale(vMatrix, [0.1, 0.2, 1.0]);
         mat4.scale(vMatrix, [0.5, 0.5, 1.0]);
+        
         Util.pushMatrix(vMatrix);
-        // Foxboy Games presents
-        mat4.translate(vMatrix, [12.0, 0.0, 0.0]);
-        mat4.scale(vMatrix, [0.7, 0.7, 1.0]);
-        Sprite4.drawText("Foxboy Games presents", this.font, oMatrix, vMatrix);
-        // TITLE OF GAME
-        mat4.scale(vMatrix, [1.4, 1.4, 1.0]);
-        mat4.translate(vMatrix, [-11, -0.5, 0.0]);
-        Sprite4.drawText("Fox, escape from Evil Mr. Grabberson!",
-            this.font, oMatrix, vMatrix);
+        if (this.screen == this.SCREENS.WELCOME) {
+            Util.pushMatrix(vMatrix);
+            mat4.translate(vMatrix, [30.0, 1.0, 0.0]);
+            mat4.scale(vMatrix, [0.4, 0.4, 0.4])
+            Sprite4.drawText("Released: 2014-09-10",
+                this.font, oMatrix, vMatrix);
+            vMatrix = Util.popMatrix();
+            
+            Util.pushMatrix(vMatrix);
+            mat4.translate(vMatrix, [12.0, -0.5, 0.0]);
+            mat4.scale(vMatrix, [0.7, 0.7, 1.0]);
+            Sprite4.drawText("SneManden Games presents",
+                this.font, oMatrix, vMatrix);
+            vMatrix = Util.popMatrix();
 
-        // Story
+            mat4.translate(vMatrix, [0.65, -2.5, 0.0]);
+            Sprite4.drawText("Fox, escape from Evil Mr. Grabberson!",
+                this.font, oMatrix, vMatrix);
+
+            mat4.translate(vMatrix, [4.0, -12.0, 0.0]);
+            mat4.scale(vMatrix, [0.75, 0.75, 0.75]);
+            var extra = [
+                "Navigate menu with <left> and <right>",
+                "Press <Enter> or <Space> to start game",
+            ];
+            this.drawLines(extra, this.font, oMatrix, vMatrix);
+        }
+        else if (this.screen == this.SCREENS.STORY) {
+            var story = [
+                "The best animal in the world, the Fox,",
+                "is chased by the villainous and wicked",
+                "Evil Mr. Grabberson.",
+                "",
+                "Fox must therefore escape the wrath of",
+                "Evil Mr. Grabberson, and return safely",
+                "to its foxhole in the midst of the",
+                "unilluminated forest.",
+                "",
+                "For all you do, do not let the immoral",
+                "Evil Mr. Grabberson get hold of Fox!",
+            ];
+            this.drawLines(story, this.font, oMatrix, vMatrix);
+        }
+        else if (this.screen == this.SCREENS.CONTROLS) {
+            var controls = [
+                "CONTROLS:",
+                "  Move and jump Fox with <ARROW> keys",
+                "  <M> to mute, <P> to pause",
+                "",
+                "Be careful in the forest:",
+                "  Fox may tumble on stone",
+                "  Fox will get high by eating mushroom",
+                "  Fox will get well by eating berry",
+                "",
+                "Do not miss the foxhole!",
+            ];
+            this.drawLines(controls, this.font, oMatrix, vMatrix);
+        }
+        else if (this.screen == this.SCREENS.CREDITS) {
+            var credits = [
+                "The game, graphics and sound effects",
+                "are created and/or generated by:",
+                "  Casper Kehlet Jensen",
+                "",
+                "Music can be credited Soundcloud-user:",
+                "  Abstraction",
+                "",
+                "Special mentions:",
+                "  Joakim & Soeren (game characters)",
+                "  Notch (inspiration and awesome)",
+                "",
+                "HTML5, Javascript, WebGL",
+            ];
+            this.drawLines(credits, this.font, oMatrix, vMatrix);
+        }
         vMatrix = Util.popMatrix();
-        // mat4.scale(vMatrix, [0.8, 0.8, 1.0]);
-        mat4.translate(vMatrix, [0.0, -5.0, 0.0]);
-        Sprite4.drawText("Escape the wrath of the evil",
-            this.font, oMatrix, vMatrix);
-        Sprite4.drawText(" Evil Mr. Grabberson.",
-            this.font, oMatrix, vMatrix);
-        Sprite4.drawText("If he catches Fox, Evil wins.",
-            this.font, oMatrix, vMatrix);
-        // Controls
-        mat4.translate(vMatrix, [0.0, -1.0, 0.0]);
-        Sprite4.drawText("CONTROLS: <ARROW> keys for movement",
-            this.font, oMatrix, vMatrix);
-        mat4.translate(vMatrix, [10.8, 0.0, 0.0]);
-        Sprite4.drawText("<M> to mute, <P> to pause",
-            this.font, oMatrix, vMatrix);
-        // Credits
-        mat4.translate(vMatrix, [-10.8, -1.0, 0.0]);
-        Sprite4.drawText("Made by Casper Kehlet Jensen",
-            this.font, oMatrix, vMatrix);
-        Sprite4.drawText("Sounds and graphics by Casper",
-            this.font, oMatrix, vMatrix);
-        Sprite4.drawText("Music by Benjamin Burnes (Abstraction)",
-            this.font, oMatrix, vMatrix);
-        // done
-        // vMatrix = Util.popMatrix();
         gl.enable(gl.DEPTH_TEST);
+    },
+
+    drawLines: function(lines, font, pMatrix, mvMatrix) {
+        for (var i=0; i<lines.length; i++) {
+            var line = lines[i];
+            Sprite4.drawText(line, font, pMatrix, mvMatrix);
+        }
     },
 
     drawScene: function() {
@@ -352,7 +449,6 @@ Game.prototype = {
         }
 
         // Draw each of the obstacles
-        if (!this.obstacles) return;
         for (var i=0; i<this.obstacles.length; i++) {
             Util.pushMatrix(mvMatrix);
             this.obstacles[i].draw(pMatrix, mvMatrix);
@@ -453,11 +549,14 @@ Game.prototype = {
         mat4.scale(vMatrix, [0.1, 0.2, 1.0]);
         mat4.scale(vMatrix, [0.5, 0.5, 0.5]);
         Util.pushMatrix(vMatrix);
-        Sprite4.drawText("Evil Mr. Grabberson: ", this.font, oMatrix, vMatrix);
-        Sprite4.drawText(" \"Aaah! Damn you, Fox!",
-            this.font, oMatrix, vMatrix);
-        Sprite4.drawText("  You win this time!\"",
-            this.font, oMatrix, vMatrix);
+        var winText = [
+            "Evil Mr. Grabberson: ",
+            " \"Aaah! Damn you, Fox!",
+            "  You win this time!\"",
+            "","","","","","","","",
+            "<R> to try again; <Space> to return",
+        ];
+        this.drawLines(winText, this.font, oMatrix, vMatrix);
         vMatrix = Util.popMatrix();
         gl.enable(gl.DEPTH_TEST);
     },
@@ -480,11 +579,14 @@ Game.prototype = {
         mat4.scale(vMatrix, [0.1, 0.2, 1.0]);
         mat4.scale(vMatrix, [0.5, 0.5, 0.5]);
         Util.pushMatrix(vMatrix);
-        Sprite4.drawText("Evil Mr. Grabberson: ", this.font, oMatrix, vMatrix);
-        Sprite4.drawText(" \"Muahaha! You lose, Foxboy!",
-            this.font, oMatrix, vMatrix);
-        Sprite4.drawText("  Fox is mine!\"",
-            this.font, oMatrix, vMatrix);
+        var loseText = [
+            "Evil Mr. Grabberson: ",
+            " \"Muahaha! You lose, Foxboy!",
+            "  Fox is mine!\"",
+            "","","","","","","","",
+            "<R> to try again; <Space> to return",
+        ];
+        this.drawLines(loseText, this.font, oMatrix, vMatrix);
         vMatrix = Util.popMatrix();
         gl.enable(gl.DEPTH_TEST);
     },
@@ -541,8 +643,6 @@ Game.prototype = {
     },
 
     animateWinLose: function() {
-        if (this.doFade === undefined) this.doFade = true;
-        if (this.hasFaded === undefined) this.hasFaded = false;
         if (this.doFade) {
             if (!this.hasFaded) {
                 var self = this;
@@ -656,34 +756,8 @@ Game.prototype = {
     },
 
     handleKeys: function() {
-        // Debug mode
-        if (false && !this.keysLocked && this.keys[68]) { // D
-            this.toggleDebugMode();
-            this.keysLocked = new Date().getTime();
-        }
-        // Mute
-        if (!this.keysLocked && this.keys[77]) // M
-            createjs.Sound.setMute(!createjs.Sound.getMute());
-        // Pause game
-        if (!this.keysLocked && this.keys[80]) { // P
-            if (this.paused)    this.unPause();
-            else                this.pause();
-            this.keysLocked = new Date().getTime();
-        }
-        // PLAY GAME
-        if (this.state == this.STATES.TITLE) {
-            // Space, Enter, ARROW keys
-            if (this.keys[32] || this.keys[13] || this.keys[37] || this.keys[38] || this.keys[39] || this.keys[40])
-                this.start();
-        }
-        // RESTART GAME
-        if (this.state == this.STATES.WIN || this.state == this.STATES.LOSE) {
-            // Space, Enter, R
-            if (this.keys[32] || this.keys[13] || this.keys[82]) 
-                restartGame();
-        }
-
-        this.entities[0].handleKeys();
+        if (this.player)
+            this.player.handleKeys();
     },
 
     pause: function() {
@@ -706,6 +780,47 @@ Game.prototype = {
 
     handleKeyUp: function(self, e) {
         self.keys[e.keyCode] = false;
+
+        // Handle that arrow keys are pressed
+        if ([37,38,39,40].indexOf(e.keyCode) > -1)
+            self.handleKeyPressed(self, e);
+    },
+
+    handleKeyPressed: function(self, e) {
+        Util.log(e.keyCode);
+
+        var keyCode = e.keyCode;
+        // Debug mode
+        if (false && keyCode == 100) // D
+            self.toggleDebugMode();
+        // Mute
+        if (keyCode == 109) // M
+            createjs.Sound.setMute(!createjs.Sound.getMute());
+        // Pause game
+        if (keyCode == 112) { // P
+            if (self.paused)    self.unPause();
+            else                self.pause();
+        }
+
+        // TITLE SCREEN CONTROLS
+        if (self.state == self.STATES.TITLE) {
+            // Space, Enter => PLAY GAME
+            if (keyCode == 32 || keyCode == 13)
+                self.start();
+            // ARROW KEYS (left, right)
+            if (keyCode == 37)
+                self.screen = Math.max(self.screen-1, self.SCREENS.WELCOME);
+            if (keyCode == 39)
+                self.screen = Math.min(self.screen+1, self.SCREENS.CREDITS);
+        }
+        // WIN/LOSE CONTROLS
+        if (self.state == self.STATES.WIN || self.state == self.STATES.LOSE) {
+            // R, Space, Enter => BACK TO TITLE SCREEN
+            if (keyCode == 114)
+                self.start();
+            if (keyCode == 32 || keyCode == 13)
+                self.backToTitle();
+        }
     },
 
     // http://www.html5gamedevs.com/topic/1828-how-to-calculate-fps-in-plain-javascript/
@@ -744,8 +859,8 @@ function gameLoop() {
 }
 
 // Restarts the game by null'ing "game" and creating a new instance
+// DOES NOT WORK (?)
 function restartGame() {
-    console.log("Restarting!");
     game = null;
     game = new Game(false);
     game.init();
