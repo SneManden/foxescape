@@ -70,16 +70,7 @@ Player.prototype = {
                 this.speed.x : this.speed.x*0.5);
         if (this.game.keys[39])     // RIGHT
             this.acceleration.x += (this.acceleration.y == this.bounds.bottom ?
-                this.speed.x : this.speed.x*0.5);
-
-        // DEBUG ONLY: Forward
-        if (false && this.game.debug) {
-            if (this.game.keys[87])
-                this.acceleration.z -= this.speed.z;
-            if (this.game.keys[83])
-                this.acceleration.z += this.speed.z;
-        }
-        
+                this.speed.x : this.speed.x*0.5);        
     },
 
     animate: function(elapsedTime) {
@@ -407,13 +398,6 @@ Enemy.prototype = {
         var offset = {x:this.offset.x+this.frame*this.size.w, y:this.offset.y};
         Sprite4.renderSprite3(this.size, offset, pMatrix, mvMatrix);
         mvMatrix = Util.popMatrix();
-
-        // Render shadow
-        // mat4.translate(mvMatrix,
-        //     [this.position.x-0.5, this.bounds.bottom-0.5, this.position.z-0.01]);
-        // mat4.scale(mvMatrix, [1.5, 0.8, 0.0]);
-        // Sprite4.renderSprite({w:32.0,h:16.0}, {x:32.0, y:96.0}, pMatrix, mvMatrix,
-        //     [0.0, 0.0, 0.0, 1.0]);
     },
 
     animate: function(elapsedTime) {
@@ -464,21 +448,6 @@ Enemy.prototype = {
             this.position.x = this.bounds.left;
         if (this.position.x > this.bounds.right)
             this.position.x = this.bounds.right;
-
-        // Collide with obstacles
-        // for (var i in this.game.obstacles) {
-        //     var obstacle = this.game.obstacles[i],
-        //         zdiff = (obstacle.position.z - this.position.z),
-        //         combinedRadius = this.radius + obstacle.radius;
-        //     // Length is distance to obstacle
-        //     var xdiff = (obstacle.position.x - this.position.x),
-        //         length = Math.sqrt(xdiff*xdiff + zdiff*zdiff);
-        //     // Collision
-        //     if (length < combinedRadius) {// Eject player in direction of normal
-        //         var normal = {x:xdiff/length, z:zdiff/length};
-        //         obstacle.ejectOther(this, normal, combinedRadius - length);
-        //     }
-        // }
     }
 
 };
@@ -501,9 +470,7 @@ FoxHole.prototype.draw = function(pMatrix, mvMatrix) {
 };
 FoxHole.prototype.ejectOther = function(other, normal, distance) {
     // Obstacle.prototype.ejectOther(other, normal, distance);
-
     other.normalMode();
-    // this.game.samples.foxhole.play();
     this.game.playerWins();
 };
 FoxHole.prototype.destroy = function() {

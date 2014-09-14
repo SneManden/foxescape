@@ -9,7 +9,6 @@ var Game = function(debug) {
     this.pMatrix = mat4.create();
     this.mvMatrix = mat4.create();
     this.shaderProgram = null;
-    // this.treePositions = [];
     this.obstacles = [];
     this.entities = [];
     this.textures = [];
@@ -170,9 +169,7 @@ Game.prototype = {
             return;
         }
         this.state = this.STATES.TITLE;
-        // Play background music
         this.samples.title.play();
-        // Start game loop
         gameLoop();
     },
 
@@ -202,7 +199,6 @@ Game.prototype = {
 
     backToTitle: function() {
         createjs.Sound.stop();
-        // Back to menu
         this.state = this.STATES.TITLE;
         this.samples.title.play();
     },
@@ -219,8 +215,6 @@ Game.prototype = {
             this.drawTitle();
             this.animateTitle();
         }
-        if (new Date().getTime() - this.keysLocked > 500)
-            this.keysLocked = false;
     },
 
     drawTitle: function() {
@@ -381,7 +375,6 @@ Game.prototype = {
                                   -0.25-this.player.position.y*0.25,
                                   -this.player.position.z] ); // follow player
 
-        // TODO: OPTIMIZE THIS (reuse code!)
         // Draw ground #1
         Util.pushMatrix(mvMatrix);
         mat4.translate(mvMatrix, [0.0, -2.0, -63.0+this.groundOffset]);
@@ -631,15 +624,11 @@ Game.prototype = {
         if (this.level-1 < -Math.ceil(this.player.position.z/128.0)) {
             this.nextLevel();
         }
-
         // Lose condition(s)
         if (this.enemy && this.player.position.z >= this.enemy.position.z-2.0)
             this.playerLoses();
         if (this.enemy && this.player.position.z < this.foxhole.position.z-5.0)
             this.playerLoses();
-
-        // this.playerWins();
-        // this.playerLoses();
     },
 
     animateWinLose: function() {
@@ -776,11 +765,13 @@ Game.prototype = {
         if (self.debug)
             Util.log(e.keyIdentifier + " (" + e.keyCode + ")");
         self.keys[e.keyCode] = true;
+        // Suppress default action
+        if ([37,38,39,40].indexOf(e.keyCode) > -1)
+            e.preventDefault();
     },
 
     handleKeyUp: function(self, e) {
         self.keys[e.keyCode] = false;
-
         // Handle that arrow keys are pressed
         if ([37,38,39,40].indexOf(e.keyCode) > -1)
             self.handleKeyPressed(self, e);
@@ -789,8 +780,12 @@ Game.prototype = {
     handleKeyPressed: function(self, e) {
         Util.log(e.keyCode);
 
+        // Suppress default action
+        if ([100,109,112,32,13,37,39,114].indexOf(e.keyCode) > -1)
+            e.preventDefault();
+
         var keyCode = e.keyCode;
-        // Debug mode
+        // Debug mode (false = disabled)
         if (false && keyCode == 100) // D
             self.toggleDebugMode();
         // Mute
@@ -801,7 +796,6 @@ Game.prototype = {
             if (self.paused)    self.unPause();
             else                self.pause();
         }
-
         // TITLE SCREEN CONTROLS
         if (self.state == self.STATES.TITLE) {
             // Space, Enter => PLAY GAME

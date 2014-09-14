@@ -113,22 +113,6 @@ var Sprite4 = {
         gl.drawElements(gl.TRIANGLES, this.indexItemSize, gl.UNSIGNED_SHORT, 0);
     },
 
-    renderSprite4: function(size, offset, pMatrix, mvMatrix, color) {
-        if (!this.texture.loaded) return;
-        color = (color === undefined ? [1.0, 1.0, 1.0, 1.0] : color);
-        // Setup texture matrix
-        var texMatrix = mat4.create();
-        mat4.identity(texMatrix);
-        mat4.scale(texMatrix,
-            [1.0/this.texture.width, 1.0/this.texture.height, 0.0]);
-        mat4.translate(texMatrix, [offset.x, 256-size.w-offset.y-16.0, 0.0]);
-        mat4.scale(texMatrix, [size.w, size.h, 0.0]);
-        gl.uniformMatrix4fv(this.shaderProgram.textureUniform, false, texMatrix);
-        gl.uniform4fv(this.shaderProgram.colorUniform, color);
-        this.setCamera(pMatrix, mvMatrix);
-        gl.drawElements(gl.TRIANGLES, this.indexItemSize, gl.UNSIGNED_SHORT, 0);
-    },
-
     renderScreenSprite: function(size, offset, pMatrix, mvMatrix, color) {
         if (!this.texture.loaded) return;
         color = (color === undefined ? [1.0, 1.0, 1.0, 1.0] : color);
@@ -158,8 +142,6 @@ var Sprite4 = {
             offset.x = 5 * xPos;
             offset.y = 8 * yPos;
             // Draw the letter
-            // console.log("Writing letter " + message[i] + " (code="+(symbolInFont+32)+")");
-            // console.log(" => offset = {x:"+offset.x+", y:"+offset.y+"}");
             this.renderScreenSprite(size, offset, pMatrix, mvMatrix, color);
             // Move to the right for next letter
             if ( (yPos==2 && xPos>=8) || (yPos==3) || (yPos==4 && xPos<=9) ) {
