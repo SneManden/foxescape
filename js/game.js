@@ -67,19 +67,19 @@ Game.prototype = {
         this.samples.grab = new Sample("grab", "grab.wav", 0.5);
         // Add textures here
         this.textures.push(
-            (this.spriteSheet = new Texture({source:"spriteSheet.png"}))
+            (this.spriteSheet = new Texture({source:"/tex/spriteSheet.png"}))
         );
         this.textures.push(
-            (this.groundTexture = new Texture({source:"ground.png"}))
+            (this.groundTexture = new Texture({source:"/tex/ground.png"}))
         );
         this.textures.push(
-            (this.background = new Texture({source:"backgroundTrees.png"}))
+            (this.background = new Texture({source:"/tex/backgroundTrees.png"}))
         );
         this.textures.push(
-            (this.font = new Texture({source:"font.png"}))
+            (this.font = new Texture({source:"/tex/font.png"}))
         );
         this.textures.push(
-            (this.titleTexture = new Texture({source:"title.png"}))
+            (this.titleTexture = new Texture({source:"/tex/title.png"}))
         );
         // Add entities here
         this.entities.push(
@@ -124,7 +124,7 @@ Game.prototype = {
     },
 
     initShaders: function() {
-        var shader = new Shader("vertexShader.glsl", "fragmentShader.glsl");
+        var shader = new Shader("/shaders/vertexShader.glsl", "/shaders/fragmentShader.glsl");
         this.shaderProgram = shader.init();
         Sprite4.setShaderProgram(this.shaderProgram);
     },
@@ -148,7 +148,7 @@ Game.prototype = {
             this.samplesRemaining++;
         }
         createjs.Sound.addEventListener("fileload", partial(this.sampleLoaded, this));
-        createjs.Sound.registerManifest(manifest, "snd/");
+        createjs.Sound.registerManifest(manifest, "/snd/");
     },
 
     sampleLoaded: function(self, e) {

@@ -12,8 +12,8 @@ var Shader = function(vShaderFile, fShaderFile) {
 Shader.prototype = {
 
     init: function() {
-        var vertexShader = this.getShader("vertexShader.glsl", "vertex"),
-            fragmentShader = this.getShader("fragmentShader.glsl", "fragment");
+        var vertexShader = this.getShader(this.vShaderFile, "vertex"),
+            fragmentShader = this.getShader(this.fShaderFile, "fragment");
         if (vertexShader === null || fragmentShader === null) {
             Util.displayError("Shader error");
             return null;
