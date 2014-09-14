@@ -160,6 +160,8 @@ Game.prototype = {
 
     allLoaded: function(self) {
         Util.log("All assets has been loaded");
+        // Remove "Loading..." text
+        document.getElementById('loading').style.display = "None";
         self.title();
     },
 

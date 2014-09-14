@@ -33,6 +33,7 @@ header h1 {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    position: relative;
 }
 canvas {
     margin: 10px;
@@ -40,6 +41,14 @@ canvas {
     border: none;
     display: block;
     background: #fff;
+}
+.canvasContainer .overlay {
+    color: #000;
+    bottom: 50%;
+    width: 800px;
+    position: absolute;
+    font-size: 24px;
+    text-align: center;
 }
 
 .errors {
